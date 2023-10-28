@@ -7,7 +7,6 @@ use epub_builder::ZipLibrary;
 use eyre::{eyre, Result};
 use futures::TryStreamExt;
 use futures::{stream, StreamExt};
-use reqwest::header::CONTENT_TYPE;
 use reqwest::Url;
 use scraper::Html;
 use scraper::Selector;
@@ -122,6 +121,24 @@ async fn fetch_chapter_content(url: &str) -> Result<String> {
     Ok(content.html())
 }
 
+async fn fetch_and_add_cover(builder: &mut EpubBuilder<ZipLibrary>, url: &str) -> Result<()> {
+    let url = Url::parse(url)?;
+    let ext = url.path().split(".").last().unwrap();
+
+    let mime = match ext {
+        "jpg" | "jpeg" => "image/jpeg",
+        "png" => "image/png",
+        _ => Err(eyre!("unsupported cover format"))?,
+    };
+
+    let file = format!("cover.{}", ext);
+
+    let data = reqwest::get(url).await?.bytes().await?;
+    builder.add_cover_image(file, data.as_ref(), mime)?;
+
+    Ok(())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     env_logger::init_from_env(env_logger::Env::default().default_filter_or("error,rustyroad=info"));
@@ -138,19 +155,8 @@ async fn main() -> Result<()> {
     builder.inline_toc();
 
     // add the cover image
-    {
-        log::info!("fetching cover...");
-
-        let cover = reqwest::get(story.cover).await?;
-        let mime = cover
-            .headers()
-            .get(CONTENT_TYPE)
-            .unwrap()
-            .to_str()?
-            .to_string();
-        let data = cover.bytes().await?;
-        builder.add_cover_image("cover.png", data.as_ref(), mime)?;
-    }
+    log::info!("fetching cover...");
+    fetch_and_add_cover(&mut builder, &story.cover).await?;
 
     stream::iter(story.chapters.iter().enumerate())
         .map(|(i, chapter)| async move {
