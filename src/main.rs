@@ -44,6 +44,7 @@ fn selector(str: &str) -> Result<Selector> {
 }
 
 async fn fetch_story(url: String) -> Result<Story> {
+    let url = url.split("/chapter/").next().unwrap();
     let resp = reqwest::get(url).await?.text().await?;
 
     let doc = Html::parse_document(resp.as_str());
@@ -53,7 +54,7 @@ async fn fetch_story(url: String) -> Result<Story> {
         .next()
         .unwrap()
         .attr("content")
-        .unwrap()
+        .ok_or_else(|| eyre!("could not find cover image"))?
         .to_string();
 
     let author = doc
@@ -61,7 +62,7 @@ async fn fetch_story(url: String) -> Result<Story> {
         .next()
         .unwrap()
         .attr("content")
-        .unwrap()
+        .ok_or_else(|| eyre!("could not find author"))?
         .to_string();
 
     let title = doc
@@ -69,7 +70,7 @@ async fn fetch_story(url: String) -> Result<Story> {
         .next()
         .unwrap()
         .attr("content")
-        .unwrap()
+        .ok_or_else(|| eyre!("could not find title"))?
         .to_string();
 
     let description = doc
@@ -77,13 +78,13 @@ async fn fetch_story(url: String) -> Result<Story> {
         .next()
         .unwrap()
         .attr("content")
-        .unwrap()
+        .ok_or_else(|| eyre!("could not find description"))?
         .to_string();
 
     let table = doc
         .select(&selector(r#"table[id="chapters"]"#)?)
         .next()
-        .unwrap();
+        .ok_or_else(|| eyre!("could not find chapters"))?;
 
     let mut chapters = Vec::new();
 
