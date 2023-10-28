@@ -3,6 +3,7 @@ use std::fs::File;
 use clap::Parser;
 use epub_builder::EpubBuilder;
 use epub_builder::EpubContent;
+use epub_builder::ReferenceType;
 use epub_builder::ZipLibrary;
 use eyre::{eyre, Result};
 use futures::TryStreamExt;
@@ -124,18 +125,52 @@ async fn fetch_chapter_content(url: &str) -> Result<String> {
 
 async fn fetch_and_add_cover(builder: &mut EpubBuilder<ZipLibrary>, url: &str) -> Result<()> {
     let url = Url::parse(url)?;
-    let ext = url.path().split(".").last().unwrap();
+    let ext = url.path().split(".").last().unwrap().to_owned();
 
-    let mime = match ext {
+    let mime = match ext.as_str() {
         "jpg" | "jpeg" => "image/jpeg",
         "png" => "image/png",
         _ => Err(eyre!("unsupported cover format"))?,
     };
 
-    let file = format!("cover.{}", ext);
-
     let data = reqwest::get(url).await?.bytes().await?;
-    builder.add_cover_image(file, data.as_ref(), mime)?;
+    builder.add_cover_image(format!("cover.{}", ext), data.as_ref(), mime)?;
+
+    let cover_page = format!(r#"<img src="cover.{}" />"#, ext);
+    builder.add_content(
+        EpubContent::new("cover.xhtml", cover_page.as_bytes())
+            .title("Cover")
+            .reftype(ReferenceType::Cover),
+    )?;
+
+    Ok(())
+}
+
+fn add_chapter(
+    builder: &mut EpubBuilder<ZipLibrary>,
+    nr: usize,
+    chapter: &Chapter,
+    content: &str,
+) -> Result<()> {
+    let xhtml = format!(
+        r#"<?xml version='1.0' encoding='utf-8'?>
+            <html xmlns="http://www.w3.org/1999/xhtml">
+                <head>
+                    <title>{}</title>
+                    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+                    <link rel="stylesheet" type="text/css" href="stylesheet.css"/>
+                </head>
+                <body>
+                    {}
+                </body>
+            </html>
+        "#,
+        chapter.name, content
+    );
+
+    builder.add_content(
+        EpubContent::new(format!("chapter_{}.xhtml", nr), xhtml.as_bytes()).title(&chapter.name),
+    )?;
 
     Ok(())
 }
@@ -153,12 +188,35 @@ async fn main() -> Result<()> {
     builder.set_title(story.title);
     builder.add_author(story.author);
     builder.add_description(story.description);
-    builder.inline_toc();
+
+    builder.stylesheet(
+        r#"
+            @page {
+                margin-bottom: 5pt;
+                margin-top: 5pt;
+            }
+            
+            .chapter-inner {
+                font-size: 1em;
+                line-height: 1.2;
+                margin: 0 5pt;
+            }
+
+            p {
+                text-indent: 1em;
+            }
+        "#
+        .as_bytes(),
+    )?;
 
     // add the cover image
     log::info!("fetching cover...");
     fetch_and_add_cover(&mut builder, &story.cover).await?;
 
+    // build the table of contents
+    builder.inline_toc();
+
+    // fetch and add the chapters
     stream::iter(story.chapters.iter().enumerate())
         .map(|(i, chapter)| async move {
             log::info!("fetching chapter {}...", i);
@@ -169,14 +227,7 @@ async fn main() -> Result<()> {
         })
         .buffered(args.concurrent)
         .try_for_each(|(i, chapter, content)| {
-            std::future::ready(
-                builder
-                    .add_content(
-                        EpubContent::new(format!("chapter_{}.xhtml", i + 1), content.as_bytes())
-                            .title(&chapter.name),
-                    )
-                    .map(|_| ()),
-            )
+            std::future::ready(add_chapter(&mut builder, i, chapter, &content))
         })
         .await?;
 
