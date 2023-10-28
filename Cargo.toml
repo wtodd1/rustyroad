@@ -1,0 +1,19 @@
+[package]
+name = "rustyroad"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.75"
+clap = { version = "4.4.7", features = ["derive"] }
+env_logger = "0.10.0"
+epub-builder = "0.7.4"
+eyre = "0.6.8"
+futures = "0.3.29"
+log = "0.4.20"
+reqwest = { version = "0.11", features = ["json", "stream"] }
+scraper = "0.18.0"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7.10", features = ["compat"] }
