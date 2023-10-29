@@ -1,4 +1,4 @@
-use std::fs::File;
+mod serialize;
 
 use clap::Parser;
 use epub_builder::EpubBuilder;
@@ -11,6 +11,9 @@ use futures::{stream, StreamExt};
 use reqwest::Url;
 use scraper::Html;
 use scraper::Selector;
+use serialize::SerializeOpts;
+use std::fs::File;
+use xml5ever::serialize::TraversalScope;
 
 #[derive(Parser, Debug)]
 #[command()]
@@ -120,7 +123,19 @@ async fn fetch_chapter_content(url: &str) -> Result<String> {
         .next()
         .ok_or(eyre!("couldn't find chapter content"))?;
 
-    Ok(content.html())
+    // serialize as xhtml
+    let mut buf = Vec::new();
+    serialize::serialize(
+        &mut buf,
+        &content,
+        SerializeOpts {
+            scripting_enabled: false,
+            traversal_scope: TraversalScope::IncludeNode,
+            create_missing_parent: false,
+        },
+    )?;
+
+    Ok(String::from_utf8(buf)?)
 }
 
 async fn fetch_and_add_cover(builder: &mut EpubBuilder<ZipLibrary>, url: &str) -> Result<()> {

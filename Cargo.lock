@@ -1283,11 +1283,14 @@ dependencies = [
  "epub-builder",
  "eyre",
  "futures",
+ "html5ever",
  "log",
+ "markup5ever",
  "reqwest",
  "scraper",
  "tokio",
  "tokio-util",
+ "xml5ever",
 ]
 
 [[package]]
@@ -2010,6 +2013,17 @@ checksum = "524e57b2c537c0f9b1e69f1965311ec12182b4122e45035b1508cd24d2adadb1"
 dependencies = [
  "cfg-if",
  "windows-sys",
+]
+
+[[package]]
+name = "xml5ever"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4034e1d05af98b51ad7214527730626f019682d797ba38b51689212118d8e650"
+dependencies = [
+ "log",
+ "mac",
+ "markup5ever",
 ]
 
 [[package]]
