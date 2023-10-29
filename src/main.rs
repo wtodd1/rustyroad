@@ -152,7 +152,21 @@ async fn fetch_and_add_cover(builder: &mut EpubBuilder<ZipLibrary>, url: &str) -
     let data = reqwest::get(url).await?.bytes().await?;
     builder.add_cover_image(format!("cover.{}", ext), data.as_ref(), mime)?;
 
-    let cover_page = format!(r#"<img src="cover.{}" />"#, ext);
+    let cover_page = format!(
+        r#"<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>Cover</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <link rel="stylesheet" type="text/css" href="stylesheet.css"/>
+    </head>
+    <body>
+        <img src="cover.{}" />
+    </body>
+</html>"#,
+        ext
+    );
     builder.add_content(
         EpubContent::new("cover.xhtml", cover_page.as_bytes())
             .title("Cover")
@@ -169,17 +183,18 @@ fn add_chapter(
     content: &str,
 ) -> Result<()> {
     let xhtml = format!(
-        r#"<?xml version='1.0' encoding='utf-8'?>
-            <html xmlns="http://www.w3.org/1999/xhtml">
-                <head>
-                    <title>{}</title>
-                    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
-                    <link rel="stylesheet" type="text/css" href="stylesheet.css"/>
-                </head>
-                <body>
-                    {}
-                </body>
-            </html>
+        r#"<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>{}</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <link rel="stylesheet" type="text/css" href="stylesheet.css"/>
+    </head>
+    <body>
+        {}
+    </body>
+</html>
         "#,
         chapter.name, content
     );

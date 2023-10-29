@@ -7,8 +7,9 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 //
-// Modified to support self-closing tags // (<br/> instead of <br>),
-// which is necessary when serializing xhtml
+// Modified to better support epub readers
+// * Use self-closing tags (<br/> instead of <br>)
+// * Use escape codes instead of named entities (&#32; instead of &nbsp;)
 
 use log::warn;
 pub use markup5ever::serialize::{AttrRef, Serialize, Serializer, TraversalScope};
@@ -108,11 +109,11 @@ impl<Wr: Write> HtmlSerializer<Wr> {
     fn write_escaped(&mut self, text: &str, attr_mode: bool) -> io::Result<()> {
         for c in text.chars() {
             match c {
-                '&' => self.writer.write_all(b"&amp;"),
-                '\u{00A0}' => self.writer.write_all(b"&nbsp;"),
-                '"' if attr_mode => self.writer.write_all(b"&quot;"),
-                '<' if !attr_mode => self.writer.write_all(b"&lt;"),
-                '>' if !attr_mode => self.writer.write_all(b"&gt;"),
+                '&' => self.writer.write_all(b"&#38;"),
+                '\u{00A0}' => self.writer.write_all(b"&#160;"),
+                '"' if attr_mode => self.writer.write_all(b"&#34;"),
+                '<' if !attr_mode => self.writer.write_all(b"&#60;"),
+                '>' if !attr_mode => self.writer.write_all(b"&#62;"),
                 c => self.writer.write_fmt(format_args!("{}", c)),
             }?;
         }
