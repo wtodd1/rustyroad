@@ -92,8 +92,9 @@ async fn fetch_story(url: String) -> Result<Story> {
 
     let mut chapters = Vec::new();
 
-    let sel_chapter = selector("tbody > tr > td > a")?;
-    for chap in table.select(&sel_chapter) {
+    for chap in table.select(&selector(
+        "#chapters > tbody > tr.chapter-row > td:first-child > a",
+    )?) {
         let link = chap.attr("href").unwrap();
         let name = chap.text().next().unwrap().trim();
 
